@@ -1,0 +1,32 @@
+def maml_sine(model, epochs, lr_inner=0.01, batch_size=1, first_order=False):
+    '''
+
+    :param model:
+    :param epochs:
+    :param lr_inners:
+    :param batch_size:
+    :param first_order:
+    :return:
+    '''
+    optimizer = torch.optim.Adam(model.params())
+
+    for _ in tqdm(range(epochs)):
+        # 共len(SINE_TRAIN)=10000次循环，每个循环内1个task, 1 way, 其中support set(10 shots), query set(10 shots)
+
+
+        for i, t in enumerate(random.sample(SINE_TRAIN, len(SINE_TRAIN))):
+            new_model = SineModel()
+            new_model.copy(model, same_var=True)
+            loss = sine_fit1(new_model, t, create_graph=not first_order)
+            # update params
+            for name, param in new_model.named_parameters():
+                grad = param.grad
+                #
+                if first_order:
+                    grad = V(grad.detach().data)
+                new_model.set_param(name, param - lr_inner * grad)
+            # query set 更新参数, 并zero grad
+            sine_fit1(new_model, t, force_new=True)
+            if(i + 1) % batch_size == 0:
+                optimizer.step()
+                optimizer.zero_grad()
